@@ -1,0 +1,8 @@
+.bundle
+
+# Try and avoid the inevitable...
+SAMPLE_CURL_REQUEST
+sample_curl_request
+sample_request
+mapping.json
+rules.json
