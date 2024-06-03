@@ -63,4 +63,4 @@ DEPENDENCIES
   ruby-progressbar (~> 1.13)
 
 BUNDLED WITH
-   2.2.22
+   2.5.11
