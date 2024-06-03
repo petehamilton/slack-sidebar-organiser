@@ -19,15 +19,6 @@ end
 
 RSpec.describe "#get_prefixes" do
   it 'returns the most common prefixes with their counts' do
-    channel_names = [
-      "project-alpha",
-      "project-beta",
-      "customer-a",
-      "customer-b",
-      "customer-c",
-      "some-other-channel"
-    ]
-
     expect(get_prefixes([
       "project-alpha",
       "project-beta",
