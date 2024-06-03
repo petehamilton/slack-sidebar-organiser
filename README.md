@@ -1,6 +1,6 @@
 # Slack Sidebar Organizer
 
-Because I just couldn't take it any more. We have channels for customers, projects, commercial deals, hiring candidates and, unsurprisingly (given I founded [incident.io](https://incidnet.io), incidents!
+Because I just couldn't take it any more. We have channels for customers, projects, commercial deals, hiring candidates and, unsurprisingly (given I founded [incident.io](https://incident.io)), incidents!
 
 I try my best to file these away, but it's always felt like a neverending battle.
 

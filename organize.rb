@@ -183,6 +183,7 @@ if !write_changes
   exit
 end
 
+puts
 puts "Let's sort it! 💪"
 puts
 puts "Note: Rate limits are harsh here, so we'll do as many as we can, but"
