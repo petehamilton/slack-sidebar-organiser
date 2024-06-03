@@ -1,6 +1,13 @@
 require "uri"
 require 'net/http'
 
+def best_prefix(channel_name, prefixes)
+  prefixes
+    .select { |prefix| channel_name.start_with?(prefix) }
+    .sort_by(&:size)
+    .last
+end
+
 def get_prefixes(channel_names)
   # Generate a list of prefix candidates, assuming "-" as the separator
   prefix_candidates = Set.new
