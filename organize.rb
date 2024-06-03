@@ -111,7 +111,7 @@ if !sidebar_rules.any?
     potential_prefixes = get_prefixes(channel_names)
 
     likely_prefixes = potential_prefixes
-      .select { |k, v| v > 5 }                      # None with < 5 channels that use the prefix
+      .select { |k, v| v > 3 }                      # None with < 3 channels that use the prefix
       .select { |k, v| k.size < 20 }                # None that are "super long"
       .sort_by { |k, v| -v }                        # Sort most popular first
       .first(3)                                     # Pick top 3
