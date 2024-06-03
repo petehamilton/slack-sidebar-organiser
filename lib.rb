@@ -102,6 +102,7 @@ class SidebarRule
   def self.from_json(json)
     case json["type"]
     when "prefix" then PrefixSidebarRule.new(json["sidebar_section_id"], json["prefix"])
+    when "keyword" then KeywordSidebarRule.new(json["sidebar_section_id"], json["keyword"])
     else raise "Didn't understand sidebar rule #{json}"
     end
   end
@@ -126,11 +127,28 @@ class PrefixSidebarRule < SidebarRule
   end
 
   def applies?(channel_name)
-    channel_name.start_with?(@prefix)
+    channel_name.start_with?(prefix)
   end
 
   def to_s
-    "Prefix: ##{@prefix}"
+    "Prefix: ##{prefix}"
+  end
+end
+
+class KeywordSidebarRule < SidebarRule
+  attr_reader :keyword
+
+  def initialize(sidebar_section_id, keyword)
+    @sidebar_section_id = sidebar_section_id
+    @keyword = keyword
+  end
+
+  def applies?(channel_name)
+    channel_name.include?(keyword)
+  end
+
+  def to_s
+    "Keyword: ##{keyword}"
   end
 end
 
