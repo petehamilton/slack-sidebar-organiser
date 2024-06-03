@@ -1,9 +1,3 @@
-# TODO before sharing
-
-- Suffix matching (easy)
-- Match on either sidebar section name / ID (easy)
-- Use existing channel config to spit out a recommended "follow this" pattern (medium)
-
 # Slack Sidebar Organizer
 
 Because I just couldn't take it any more. We have channels for customers, projects, commercial deals, hiring candidates and, unsurprisingly (given I founded [incident.io](https://incident.io)), incidents!
