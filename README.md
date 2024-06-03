@@ -68,8 +68,8 @@ Why do this? Because the public Slack API doesn't support the sidebar API method
 
 ```
 # To do a dry-run on what will move where
-bundle exec ruby organize.rb CURL_FILE MAPPING_FILE
+bundle exec ruby organize.rb CURL_FILE RULES_FILE
 
 # To actually organise, add a --write option
-bundle exec ruby organize.rb CURL_FILE MAPPING_FILE --write
+bundle exec ruby organize.rb CURL_FILE RULES_FILE --write
 ```
