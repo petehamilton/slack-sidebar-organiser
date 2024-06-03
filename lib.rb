@@ -1,5 +1,6 @@
 require "uri"
 require 'net/http'
+require 'json'
 
 def best_prefix(channel_name, prefixes)
   prefixes

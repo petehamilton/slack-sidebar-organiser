@@ -5,6 +5,7 @@ require "json"
 require 'zlib'
 require 'stringio'
 require "ruby-progressbar"
+require 'set'
 require "limiter"
 require "./lib"
 
