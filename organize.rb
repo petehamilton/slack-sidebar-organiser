@@ -235,12 +235,19 @@ if !write_changes
   puts "We would move:"
   puts
 
-  sidebar_moves.each do |m|
-    channel = channels[m[:channel_id]]
-    from_sidebar_section = get_sidebar_section.call(m[:from_sidebar_section_id])
-    to_sidebar_section = get_sidebar_section.call(m[:to_sidebar_section_id])
+  sidebar_moves.group_by {|move| move[:to_sidebar_section_id] }.each do |to_sidebar_section_id, moves|
+    to_sidebar_section = get_sidebar_section.call(to_sidebar_section_id)
 
-    puts "    #{channel["name"]} (#{m[:channel_id]}) ➜ #{to_sidebar_section.name} (#{to_sidebar_section.id})"
+    puts "➜ #{to_sidebar_section.name} (#{to_sidebar_section.id})"
+
+    moves.each do |move|
+      channel = channels[move[:channel_id]]
+      from_sidebar_section = get_sidebar_section.call(move[:from_sidebar_section_id])
+
+      puts "    ##{channel["name"]} (#{move[:channel_id]})"
+    end
+
+    puts
   end
 
   puts
@@ -319,12 +326,19 @@ puts "Organized #{successful_moves.size} channels"
 puts
 puts "We moved:"
 puts
-sidebar_moves.each do |m|
-  channel = channels[m[:channel_id]]
-  from_sidebar_section = get_sidebar_section.call(m[:from_sidebar_section_id])
-  to_sidebar_section = get_sidebar_section.call(m[:to_sidebar_section_id])
+successful_moves.group_by {|move| move[:to_sidebar_section_id] }.each do |to_sidebar_section_id, moves|
+  to_sidebar_section = get_sidebar_section.call(to_sidebar_section_id)
 
-  puts "    #{channel["name"]} (#{m[:channel_id]}) ➜ #{to_sidebar_section.name} (#{to_sidebar_section.id})"
+  puts "➜ #{to_sidebar_section.name} (#{to_sidebar_section.id})"
+
+  moves.each do |move|
+    channel = channels[move[:channel_id]]
+    from_sidebar_section = get_sidebar_section.call(move[:from_sidebar_section_id])
+
+    puts "    ##{channel["name"]} (#{move[:channel_id]})"
+  end
+
+  puts
 end
 
 puts
