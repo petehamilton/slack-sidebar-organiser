@@ -75,7 +75,7 @@ if sidebar_rules_raw.any?
   sidebar_rules.each do |rule|
     sidebar = get_sidebar_section.call(rule.sidebar_section_id)
 
-    puts "#{rule.to_s.rjust(max_rule_length+3)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
+    puts "#{rule.to_s.ljust(max_rule_length)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
   end
 end
 
