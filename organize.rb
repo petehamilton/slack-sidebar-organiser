@@ -34,20 +34,6 @@ end
 client = SlackClient.new(base_uri: base_uri, cookie: cookie, token: token)
 
 puts
-puts "LOADING CHANNELS"
-puts "================"
-
-all_channels = client.get_channels(cursor: nil, fetched: -> { print "." })
-
-# Filter to real channels only, no DMs etc
-all_channels.select! { |c| c["is_channel"]}
-
-# Filter to channels user is a part of, turn into ID => Channel mapping
-channels = all_channels.select { |c| c["is_member"]}.group_by { |c| c["id"] }.map { |k, v| [k, v.first] }.to_h
-
-puts "\rLoaded #{all_channels.size} channels. Filtered to the #{channels.size} ones you're a member of."
-
-puts
 puts "LOADING SIDEBAR SECTIONS"
 puts "========================="
 
@@ -92,6 +78,21 @@ if sidebar_rules_raw.any?
     puts "#{rule.to_s.ljust(max_rule_length)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
   end
 end
+
+puts
+puts "LOADING CHANNELS"
+puts "================"
+
+all_channels = client.get_channels(cursor: nil, fetched: -> { print "." })
+
+# Filter to real channels only, no DMs etc
+all_channels.select! { |c| c["is_channel"]}
+
+# Filter to channels user is a part of, turn into ID => Channel mapping
+channels = all_channels.select { |c| c["is_member"]}.group_by { |c| c["id"] }.map { |k, v| [k, v.first] }.to_h
+
+puts "\rLoaded #{all_channels.size} channels. Filtered to the #{channels.size} ones you're a member of."
+
 
 # If no sidebar_rules provided, suggest some!
 if sidebar_rules.empty?
