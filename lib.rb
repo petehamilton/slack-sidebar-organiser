@@ -11,20 +11,14 @@ end
 
 def get_prefixes(channel_names)
   # Generate a list of prefix candidates, assuming "-" as the separator
-  prefix_candidates = Set.new
+  prefix_candidates = Hash.new(0)
   channel_names.each do |name|
     parts = name.split('-')
     parts = parts[0..-2] # Cut off the last section
-    parts = parts[0..3]  # Only treat first 4 sections as prefixes
-    parts.each_index { |i| prefix_candidates.add(parts[0..i].join('-')) }
+    parts = parts[0..3] # Only treat first 4 sections as prefixes
+    parts.each_index { |i| prefix_candidates[parts[0..i].join('-')] += 1 }
   end
-
-  # Now, run all those channel names through the "best prefix" matcher
-  channel_names.each_with_object(Hash.new(0)) do |name, counts|
-    prefix = best_prefix(name, prefix_candidates.to_a)
-    next unless prefix
-    counts[prefix] += 1
-  end
+  prefix_candidates
 end
 
 def unzip(body)

@@ -75,7 +75,7 @@ if sidebar_rules_raw.any?
   sidebar_rules.each do |rule|
     sidebar = get_sidebar_section.call(rule.sidebar_section_id)
 
-    puts "#{rule.to_s.ljust(max_rule_length)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
+    puts "#{rule.to_s.rjust(max_rule_length+3)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
   end
 end
 
@@ -93,9 +93,8 @@ channels = all_channels.select { |c| c["is_member"]}.group_by { |c| c["id"] }.ma
 
 puts "\rLoaded #{all_channels.size} channels. Filtered to the #{channels.size} ones you're a member of."
 
-
 # If no sidebar_rules provided, suggest some!
-if sidebar_rules.empty?
+if !sidebar_rules.any?
   puts
   puts "PREFIX SUGGESTIONS"
   puts "====================="
@@ -104,17 +103,51 @@ if sidebar_rules.empty?
   puts "ideas based on channels in your workspace:"
   puts
 
-  prefixes = get_prefixes(channels.map { |id, c| c["name"] })
+  # Let's look at each sidebar section in turn and try to reverse engineer some
+  # sensible rules for them.
+  proposed_prefix_rules = sidebar_sections.flat_map do |sidebar_section|
+    channel_names = channels.select { |_, c| sidebar_section.includes_channel?(c["id"]) }.map { |_, c| c["name"] }
+
+    potential_prefixes = get_prefixes(channel_names)
+
+    likely_prefixes = potential_prefixes
+      .select { |k, v| v > 5 }                      # None with < 5 channels that use the prefix
+      .select { |k, v| k.size < 20 }                # None that are "super long"
+      .sort_by { |k, v| -v }                        # Sort most popular first
+      .first(3)                                     # Pick top 3
+      .map do |prefix, count|
+        { "type" => "prefix", "sidebar_section" => sidebar_section.name, "prefix" => "#{prefix}-", "count" => count }
+      end
+  end
+
+  # If a prefix appears in multiple rules, pick the rule which applies to the
+  # most channels
+  proposed_prefix_rules = proposed_prefix_rules
+    .group_by { |rule| rule["prefix"] }
+    .map { |prefix, rules| rules.sort_by { |rule| rule["count"] }.last }
+    .map { |rule| rule.except("count") }
+
+  # Sort the rules by sidebar section and then by prefix
+  proposed_prefix_rules.sort_by! { |rule| [rule["sidebar_section"], rule["prefix"]] }
+
+  # Yes, I am manually printing JSON. Sue me. Could use JSON.pretty_generate,
+  # but it leads to pretty verbose output I'd rather avoid.
+  puts "["
+  puts proposed_prefix_rules
+    .map(&:to_json)
+    .map { |s| "    #{s.gsub(/","/, '", "')}"}
+    .join(",\n")
+  puts "]"
+
+  # We can't do any more here
 
   puts
-
-  # Arbitrary filtering down to a sensible set. Feel free to tweak.
-  prefixes
-    .select { |k, v| v > 5 } # None with < 5 channels that use the prefix
-    .select { |k, v| k.size < 20 } # None that are "super long"
-    .sort_by { |k, v| -v } # Sort most popular first
-    .first(20)
-    .each { |prefix, count| puts "  - #{prefix}: #{count} channels found" }
+  puts "To dry-run, tweak and save the above in a rule.json file somewhere and run that"
+  puts
+  puts "    bundle exec ruby organize.rb #{ARGV[0]} rule.json --write"
+  puts
+  puts
+  exit
 end
 
 total_matches = 0
