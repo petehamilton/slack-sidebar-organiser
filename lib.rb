@@ -194,6 +194,11 @@ Content-Disposition: form-data; name="token"
 
 #{@token}
 ------BOUNDARY
+Content-Disposition: form-data; name="types"
+
+public_channel,private_channel
+------BOUNDARY
+
 )
 
     json = make_request(
