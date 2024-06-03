@@ -6,6 +6,8 @@ I try my best to file these away, but it's always felt like a neverending battle
 
 No more! This script organizes everything the way I want. It works for me - use it at your own risk!
 
+![organize](https://github.com/petehamilton/slack-sidebar-organiser/assets/510845/f414993e-d995-4a76-b6df-4895af6c3690)
+
 ## Prep
 
 Install dependencies:
