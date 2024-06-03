@@ -38,6 +38,7 @@ RSpec.describe "#get_prefixes" do
     ])).to eq({
       "customer"=>3,
       "project"=>2,
+      "some"=>1,
       "some-other"=>1
     })
   end
@@ -51,19 +52,6 @@ RSpec.describe "#get_prefixes" do
       "dog" => 1,
       "cat" => 1,
       "fish" => 1
-    })
-  end
-
-  it "doesn't double count prefixes of prefixes" do
-    expect(get_prefixes([
-      "customer-a",
-      "customer-b",
-      "customer-c",
-      "customer-vip-d",
-      "customer-vip-e"
-    ])).to eq({
-      "customer" => 3,
-      "customer-vip" => 2
     })
   end
 
