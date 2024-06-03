@@ -269,7 +269,7 @@ if errors.size > 0
   puts
   puts "Sadly #{errors.size} channels couldn't be moved:"
   puts
-  errors.each { |e| puts "    #{error.inspect}" }
+  errors.each { |err| puts "    #{err.inspect}" }
 end
 
 puts
