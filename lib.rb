@@ -107,10 +107,10 @@ class SidebarSection
 end
 
 class SidebarRule
-  def self.from_json(json)
+  def self.from_json(id, json)
     case json["type"]
-    when "prefix" then PrefixSidebarRule.new(json["sidebar_section_id"], json["prefix"])
-    when "keyword" then KeywordSidebarRule.new(json["sidebar_section_id"], json["keyword"])
+    when "prefix" then PrefixSidebarRule.new(id, json["prefix"])
+    when "keyword" then KeywordSidebarRule.new(id, json["keyword"])
     else raise "Didn't understand sidebar rule #{json}"
     end
   end

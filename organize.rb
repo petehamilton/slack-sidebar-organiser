@@ -9,13 +9,8 @@ require 'set'
 require "limiter"
 require "./lib"
 
-if ARGV.size < 2
-  puts "Usage: bundle exec ruby organize.rb CURL_FILE MAPPING_FILE"
-end
-
-SAMPLE_CURL_REQUEST = File.read(ARGV[0])
+sample_curl_request = File.read(ARGV[0])
 sidebar_rules_raw = ARGV[1] ? JSON.parse(File.read(ARGV[1])) : {}
-sidebar_rules = sidebar_rules_raw.map { |rule| SidebarRule.from_json(rule) }
 
 # Vomit. I promise I'm an engineer.
 write_changes = ARGV[2] == "--write"
@@ -23,7 +18,7 @@ write_changes = ARGV[2] == "--write"
 # Parse the sample cURL command and extract the auth token.
 # I'm sure there's a way to do this without the gsub fuckery,
 # but I'm doing this quickly for fun. Code shame me later.
-parsed_curl_command = parse_curl_command(SAMPLE_CURL_REQUEST)
+parsed_curl_command = parse_curl_command(sample_curl_request)
 parsed_body = parsed_curl_command[:data]
   .gsub('\n', "\n")
   .gsub('\r', "\r")
@@ -70,6 +65,34 @@ sidebar_sections.sort_by(&:name).each do |s|
   puts "#{s.id}: #{s.name} (#{s.channel_ids.size})"
 end
 
+sidebar_rules = []
+if sidebar_rules_raw.any?
+  puts
+  puts "LOADING RULES"
+  puts "============="
+
+  sidebar_rules = sidebar_rules_raw.map do |json|
+    # Look up sidebar section by ID first
+    sidebar_section =
+      sidebar_sections.find { |s| json["sidebar_section"] == s.id } ||
+      sidebar_sections.find { |s| json["sidebar_section"] == s.name } ||
+
+    if !sidebar_section
+      puts "Couldn't find sidebar section for #{json["sidebar_section"]}"
+      exit
+    end
+
+    SidebarRule.from_json(sidebar_section.id, json)
+  end
+
+  max_rule_length = sidebar_rules.map(&:to_s).map(&:size).max
+  sidebar_rules.each do |rule|
+    sidebar = get_sidebar_section.call(rule.sidebar_section_id)
+
+    puts "#{rule.to_s.ljust(max_rule_length)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
+  end
+end
+
 # If no sidebar_rules provided, suggest some!
 if sidebar_rules.empty?
   puts
@@ -91,24 +114,6 @@ if sidebar_rules.empty?
     .sort_by { |k, v| -v } # Sort most popular first
     .first(20)
     .each { |prefix, count| puts "  - #{prefix}: #{count} channels found" }
-else
-  puts
-  puts "RULES"
-  puts "====="
-
-  sidebar_rules.each do |rule|
-    if !get_sidebar_section.call(rule.sidebar_section_id)
-      puts "Couldn't find sidebar section for #{sidebar_id}"
-      exit
-    end
-  end
-
-  max_rule_length = sidebar_rules.map(&:to_s).map(&:size).max
-  sidebar_rules.each do |rule|
-    sidebar = get_sidebar_section.call(rule.sidebar_section_id)
-
-    puts "#{rule.to_s.rjust(max_rule_length+3)} ➜ #{sidebar.name} (#{rule.sidebar_section_id})"
-  end
 end
 
 total_matches = 0

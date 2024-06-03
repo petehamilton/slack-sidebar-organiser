@@ -24,7 +24,14 @@ bundle install
 
 **Create rules.json file**
 
-This file contains all your prefix -> sidebar section rules. Rules are applied on a "first match" basis, so the ordering in your file matters.
+This file contains all your sidebar section rules. There are two types supported:
+
+- `prefix` - matches channels which start with a prefix
+- `keyword` - matches channels which contain a given keyword
+
+The `sidebar_section` param can be either an ID, or the Name of the sidebar section.
+
+Rules are applied on a "first match" basis, so *the ordering in your file matters*!
 
 If you run the script without a rules file, it'll automatically propose some for you:
 
@@ -33,16 +40,16 @@ If you run the script without a rules file, it'll automatically propose some for
 Mine looks like this:
 
 		[
-			{ "type": "prefix", "prefix": "prosp-", "sidebar_section_id": "L01M5T9N3RN" },
-			{ "type": "prefix", "prefix": "cust-", "sidebar_section_id": "L01M5T9N3RN" },
-			{ "type": "prefix", "prefix": "cust-vip", "sidebar_section_id": "L076SNUKWGY" },
-			{ "type": "prefix", "prefix": "inc-", "sidebar_section_id": "L04T33XAUNB" },
-			{ "type": "prefix", "prefix": "ext-", "sidebar_section_id": "L06R75VBLHJ" },
-			{ "type": "prefix", "prefix": "project-", "sidebar_section_id": "L04VBNASHBP" },
-			{ "type": "prefix", "prefix": "deal-", "sidebar_section_id": "L02MN2ENPF0" },
-			{ "type": "prefix", "prefix": "rollout-", "sidebar_section_id": "L02MN2ENPF0" },
-			{ "type": "prefix", "prefix": "candidate-", "sidebar_section_id": "L02NJEGR4RW" },
-			{ "type": "prefix", "prefix": "hiring-", "sidebar_section_id": "L02NJEGR4RW" },
+			{ "type": "prefix", "prefix": "prosp-", "sidebar_section": "L01M5T9N3RN" },
+			{ "type": "prefix", "prefix": "cust-", "sidebar_section": "L01M5T9N3RN" },
+			{ "type": "prefix", "prefix": "cust-vip", "sidebar_section": "L076SNUKWGY" },
+			{ "type": "prefix", "prefix": "inc-", "sidebar_section": "L04T33XAUNB" },
+			{ "type": "prefix", "prefix": "ext-", "sidebar_section": "L06R75VBLHJ" },
+			{ "type": "prefix", "prefix": "project-", "sidebar_section": "L04VBNASHBP" },
+			{ "type": "prefix", "prefix": "deal-", "sidebar_section": "L02MN2ENPF0" },
+			{ "type": "prefix", "prefix": "rollout-", "sidebar_section": "L02MN2ENPF0" },
+			{ "type": "prefix", "prefix": "candidate-", "sidebar_section": "L02NJEGR4RW" },
+			{ "type": "prefix", "prefix": "hiring-", "sidebar_section": "L02NJEGR4RW" },
 		]
 
 **Create curl_sample file**
