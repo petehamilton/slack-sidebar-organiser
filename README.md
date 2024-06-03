@@ -18,7 +18,13 @@ bundle install
 
 **Create rules.json file**
 
-Containing all your prefix -> sidebar section rules. Mine looks like this:
+This file contains all your prefix -> sidebar section rules. Rules are applied on a "first match" basis, so the ordering in your file matters.
+
+If you run the script without a rules file, it'll automatically propose some for you:
+
+    bundle exec ruby organize.rb CURL_FILE
+
+Mine looks like this:
 
 		[
 			{ "type": "prefix", "prefix": "prosp-", "sidebar_section_id": "L01M5T9N3RN" },
