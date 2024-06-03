@@ -96,7 +96,7 @@ puts "\rLoaded #{all_channels.size} channels. Filtered to the #{channels.size} o
 # If no sidebar_rules provided, suggest some!
 if !sidebar_rules.any?
   puts
-  puts "PREFIX SUGGESTIONS"
+  puts "RULE SUGGESTIONS"
   puts "====================="
   puts
   puts "You haven't provided any sidebar_rules, so here are some"
@@ -110,7 +110,7 @@ if !sidebar_rules.any?
 
     potential_prefixes = get_prefixes(channel_names)
 
-    likely_prefixes = potential_prefixes
+    potential_prefixes
       .select { |k, v| v > 3 }                      # None with < 3 channels that use the prefix
       .select { |k, v| k.size < 20 }                # None that are "super long"
       .sort_by { |k, v| -v }                        # Sort most popular first
@@ -120,20 +120,51 @@ if !sidebar_rules.any?
       end
   end
 
+  # Let's look at each sidebar section in turn and try to reverse engineer some
+  # sensible rules for them.
+  proposed_suffix_rules = sidebar_sections.flat_map do |sidebar_section|
+
+    puts sidebar_section.name
+
+    channel_names = channels.select { |_, c| sidebar_section.includes_channel?(c["id"]) }.map { |_, c| c["name"] }
+
+    potential_suffixes = get_suffixes(channel_names)
+
+    potential_suffixes
+      .select { |k, v| v > 3 }                      # None with < 3 channels that use the suffix
+      .select { |k, v| k.size < 20 }                # None that are "super long"
+      .sort_by { |k, v| -v }                        # Sort most popular first
+      .first(3)                                     # Pick top 3
+      .map do |suffix, count|
+        { "type" => "suffix", "sidebar_section" => sidebar_section.name, "suffix" => "-#{suffix}", "count" => count }
+      end
+  end
+
   # If a prefix appears in multiple rules, pick the rule which applies to the
   # most channels
   proposed_prefix_rules = proposed_prefix_rules
     .group_by { |rule| rule["prefix"] }
     .map { |prefix, rules| rules.sort_by { |rule| rule["count"] }.last }
-    .map { |rule| rule.except("count") }
 
-  # Sort the rules by sidebar section and then by prefix
-  proposed_prefix_rules.sort_by! { |rule| [rule["sidebar_section"], rule["prefix"]] }
+  # If a suffix appears in multiple rules, pick the rule which applies to the
+  # most channels
+  proposed_suffix_rules = proposed_suffix_rules
+  .group_by { |rule| rule["suffix"] }
+  .map { |prefix, rules| rules.sort_by { |rule| rule["count"] }.last }
+
+  # Join the rules together
+  proposed_rules = proposed_prefix_rules + proposed_suffix_rules
+
+  # Sort the rules by sidebar section and then by most -> least common
+  proposed_rules.sort_by! { |rule| [rule["sidebar_section"], -rule["count"]] }
+
+  # Strip the counts for printing
+  proposed_rules.map! { |rule| rule.except("count") }
 
   # Yes, I am manually printing JSON. Sue me. Could use JSON.pretty_generate,
   # but it leads to pretty verbose output I'd rather avoid.
   puts "["
-  puts proposed_prefix_rules
+  puts proposed_rules
     .map(&:to_json)
     .map { |s| "    #{s.gsub(/","/, '", "')}"}
     .join(",\n")

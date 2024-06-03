@@ -55,3 +55,42 @@ RSpec.describe "#get_prefixes" do
     })
   end
 end
+
+RSpec.describe "#get_suffixes" do
+  it 'returns the most common suffixes with their counts' do
+    expect(get_suffixes([
+      "alpha-project",
+      "beta-project",
+      "a-customer",
+      "b-customer",
+      "c-customer",
+      "some-other-channel"
+    ])).to eq({
+      "customer"=>3,
+      "project"=>2,
+      "channel"=>1,
+      "other-channel"=>1
+    })
+  end
+
+  it 'handles a list with channels that have no common prefixes' do
+    expect(get_suffixes([
+      "dog-walk",
+      "cat-nap",
+      "fish-swim"
+    ])).to eq({
+      "walk" => 1,
+      "nap" => 1,
+      "swim" => 1
+    })
+  end
+
+  it "handles channels with no suffix" do
+    expect(get_suffixes([
+      "a-customer",
+      "something",
+    ])).to eq({
+      "customer" => 1
+    })
+  end
+end

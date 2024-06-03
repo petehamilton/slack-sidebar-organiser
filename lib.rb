@@ -21,6 +21,14 @@ def get_prefixes(channel_names)
   prefix_candidates
 end
 
+# We can just re-use the logic for getting prefixes, with some flip reverse
+# magic. Neat eh?
+def get_suffixes(channel_names)
+  reversed_channel_names = channel_names.map { |s| s.split("-").reverse.join("-") }
+  prefixes = get_prefixes(reversed_channel_names)
+  prefixes.map { |k, v| [k.split("-").reverse.join("-"), v] }.to_h
+end
+
 def unzip(body)
   gz = Zlib::GzipReader.new(StringIO.new(body.to_s))
   gz.read
@@ -104,6 +112,7 @@ class SidebarRule
   def self.from_json(id, json)
     case json["type"]
     when "prefix" then PrefixSidebarRule.new(id, json["prefix"])
+    when "suffix" then SuffixSidebarRule.new(id, json["suffix"])
     when "keyword" then KeywordSidebarRule.new(id, json["keyword"])
     else raise "Didn't understand sidebar rule #{json}"
     end
@@ -134,6 +143,23 @@ class PrefixSidebarRule < SidebarRule
 
   def to_s
     "Prefix: ##{prefix}"
+  end
+end
+
+class SuffixSidebarRule < SidebarRule
+  attr_reader :suffix
+
+  def initialize(sidebar_section_id, suffix)
+    @sidebar_section_id = sidebar_section_id
+    @suffix = suffix
+  end
+
+  def applies?(channel_name)
+    channel_name.start_with?(suffix)
+  end
+
+  def to_s
+    "Suffix: ##{suffix}"
   end
 end
 
