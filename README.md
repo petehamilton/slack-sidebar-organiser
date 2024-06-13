@@ -34,16 +34,17 @@ If you run the script without a rules file, it'll automatically propose some for
 Mine looks like this:
 
 	[
-		{ "type": "prefix", "prefix": "prosp-", "sidebar_section": "L01M5T9N3RN" },
-		{ "type": "prefix", "prefix": "cust-", "sidebar_section": "L01M5T9N3RN" },
-		{ "type": "prefix", "prefix": "cust-vip", "sidebar_section": "L076SNUKWGY" },
-		{ "type": "prefix", "prefix": "inc-", "sidebar_section": "L04T33XAUNB" },
-		{ "type": "prefix", "prefix": "ext-", "sidebar_section": "L06R75VBLHJ" },
-		{ "type": "prefix", "prefix": "project-", "sidebar_section": "L04VBNASHBP" },
-		{ "type": "prefix", "prefix": "deal-", "sidebar_section": "L02MN2ENPF0" },
-		{ "type": "prefix", "prefix": "rollout-", "sidebar_section": "L02MN2ENPF0" },
-		{ "type": "prefix", "prefix": "candidate-", "sidebar_section": "L02NJEGR4RW" },
-		{ "type": "prefix", "prefix": "hiring-", "sidebar_section": "L02NJEGR4RW" },
+		{ "type": "prefix",  "sidebar_section": "VIP Customers", "prefix": "cust-vip-" },
+		{ "type": "prefix",  "sidebar_section": "Customers", "prefix": "prosp-" },
+		{ "type": "prefix",  "sidebar_section": "Customers", "prefix": "cust-" },
+		{ "type": "prefix",  "sidebar_section": "Incidents", "prefix": "inc-" },
+		{ "type": "prefix",  "sidebar_section": "External", "prefix": "ext-" },
+		{ "type": "prefix",  "sidebar_section": "Projects", "prefix": "project-" },
+		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "deal-" },
+		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "rollout-" },
+		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "renewal-" },
+		{ "type": "prefix",  "sidebar_section": "Hiring", "prefix": "hiring-" },
+		{ "type": "prefix",  "sidebar_section": "Hiring", "prefix": "candidate-" }
 	]
 
 **Create curl_sample file**
