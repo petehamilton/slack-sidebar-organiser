@@ -188,6 +188,11 @@ class SlackClient
     @token = token
   end
 
+  def ping
+    # Any request will do here, let's reuse the sidebar list request
+    get_sidebar_list.dig('ok')
+  end
+
   def get_sidebar_list
     body = %Q(
 ------BOUNDARY

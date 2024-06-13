@@ -33,6 +33,11 @@ end
 
 client = SlackClient.new(base_uri: base_uri, cookie: cookie, token: token)
 
+unless client.ping
+  puts "Can't connect to Slack - are you sure you've created a valid cURL sample file?"
+  exit
+end
+
 puts
 puts "LOADING SIDEBAR SECTIONS"
 puts "========================="
