@@ -7,3 +7,4 @@ RULES_FILE
 sample_curl_request
 sample_request
 rules.json
+curl_sample.txt

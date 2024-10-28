@@ -155,7 +155,7 @@ class SuffixSidebarRule < SidebarRule
   end
 
   def applies?(channel_name)
-    channel_name.start_with?(suffix)
+    channel_name.end_with?(suffix)
   end
 
   def to_s
