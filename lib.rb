@@ -46,6 +46,10 @@ def parse_curl_command(curl_command)
     headers[key] = value
   end
 
+  # Extract cookie from -b flag
+  cookie_match = curl_command.match(/-b '([^']+)'/)
+  headers["cookie"] = cookie_match[1] if cookie_match
+
   # Extract data
   data_match = curl_command.match(/--data-raw \$'([^']+)'/)
   data = data_match[1] if data_match
@@ -73,7 +77,7 @@ def curl_to_ruby_request(curl_command)
 end
 
 def token_from_body(s)
-  token_regex = /^xoxc-.*$/
+  token_regex = /xoxc-[^\r\n]+/
   match = s.match(token_regex)
   match ? match[0] : nil
 end

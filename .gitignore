@@ -4,7 +4,6 @@
 # A few variations to try and avoid own-goals
 CURL_FILE
 RULES_FILE
-sample_curl_request
-sample_request
+sample_*
 rules.json
 curl_sample.txt
