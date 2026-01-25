@@ -39,7 +39,7 @@ interface SidebarMove {
 // SidebarSection
 // ============================================================================
 
-class SidebarSection {
+export class SidebarSection {
   constructor(
     public readonly id: string,
     public readonly name: string,
@@ -63,7 +63,7 @@ class SidebarSection {
 // Sidebar Rules
 // ============================================================================
 
-abstract class SidebarRule {
+export abstract class SidebarRule {
   constructor(public readonly sidebarSectionId: string) {}
 
   abstract applies(channelName: string): boolean;
@@ -83,7 +83,7 @@ abstract class SidebarRule {
   }
 }
 
-class PrefixSidebarRule extends SidebarRule {
+export class PrefixSidebarRule extends SidebarRule {
   constructor(sidebarSectionId: string, public readonly prefix: string) {
     super(sidebarSectionId);
   }
@@ -97,7 +97,7 @@ class PrefixSidebarRule extends SidebarRule {
   }
 }
 
-class SuffixSidebarRule extends SidebarRule {
+export class SuffixSidebarRule extends SidebarRule {
   constructor(sidebarSectionId: string, public readonly suffix: string) {
     super(sidebarSectionId);
   }
@@ -111,7 +111,7 @@ class SuffixSidebarRule extends SidebarRule {
   }
 }
 
-class KeywordSidebarRule extends SidebarRule {
+export class KeywordSidebarRule extends SidebarRule {
   constructor(sidebarSectionId: string, public readonly keyword: string) {
     super(sidebarSectionId);
   }
@@ -175,7 +175,7 @@ export function getSuffixes(channelNames: string[]): Map<string, number> {
 // Rate Limiter
 // ============================================================================
 
-class RateLimiter {
+export class RateLimiter {
   private timestamps: number[] = [];
 
   constructor(
