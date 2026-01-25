@@ -13,14 +13,43 @@ No more! This script organizes everything the way I want. It works for me - use 
 Install dependencies:
 
 ```
-bundle install
+npm install
 ```
+
+**Set up environment variables**
+
+The script authenticates using Slack session tokens. Create a `.env` file (or export these variables):
+
+```
+SLACK_WORKSPACE=your-workspace-name
+SLACK_XOXC_TOKEN=xoxc-...
+SLACK_XOXD_TOKEN=xoxd-...
+```
+
+`SLACK_WORKSPACE` is the subdomain of your workspace (e.g. `mycompany` from `mycompany.slack.com`).
+
+To get your `xoxc` and `xoxd` tokens:
+
+1. Log into your Slack workspace in a browser (e.g. Chrome)
+2. Open DevTools (`Ctrl+Shift+I` / `Cmd+Option+I` or `F12`)
+3. **For SLACK_XOXC_TOKEN:**
+   - Go to the Console tab
+   - Type `allow pasting` and press Enter
+   - Paste and run: `JSON.parse(localStorage.localConfig_v2).teams[document.location.pathname.match(/^\/client\/([A-Z0-9]+)/)[1]].token`
+   - Copy the token (starts with `xoxc-`)
+4. **For SLACK_XOXD_TOKEN:**
+   - Go to the Application tab → Cookies
+   - Find the cookie named `d` (just the letter)
+   - Copy its value (starts with `xoxd-`)
+
+⚠️ This is needed because this script makes use of unsupported APIs. It may break in future. These tokens grant access to your Slack account. Keep them safe and don't commit them to git!
 
 **Create rules.json file**
 
-This file contains all your sidebar section rules. There are two types supported:
+This file contains all your sidebar section rules. Three types are supported:
 
 - `prefix` - matches channels which start with a prefix
+- `suffix` - matches channels which end with a suffix
 - `keyword` - matches channels which contain a given keyword
 
 The `sidebar_section` param can be either an ID, or the Name of the sidebar section.
@@ -29,42 +58,43 @@ Rules are applied on a "first match" basis, so *the ordering in your file matter
 
 If you run the script without a rules file, it'll automatically propose some for you:
 
-    bundle exec ruby organize.rb CURL_FILE
+```
+npm run organize
+```
 
 Mine looks like this:
 
-	[
-		{ "type": "prefix",  "sidebar_section": "VIP Customers", "prefix": "cust-vip-" },
-		{ "type": "prefix",  "sidebar_section": "Customers", "prefix": "prosp-" },
-		{ "type": "prefix",  "sidebar_section": "Customers", "prefix": "cust-" },
-		{ "type": "prefix",  "sidebar_section": "Incidents", "prefix": "inc-" },
-		{ "type": "prefix",  "sidebar_section": "External", "prefix": "ext-" },
-		{ "type": "prefix",  "sidebar_section": "Projects", "prefix": "project-" },
-		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "deal-" },
-		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "rollout-" },
-		{ "type": "prefix",  "sidebar_section": "Deals", "prefix": "renewal-" },
-		{ "type": "prefix",  "sidebar_section": "Hiring", "prefix": "hiring-" },
-		{ "type": "prefix",  "sidebar_section": "Hiring", "prefix": "candidate-" }
-	]
-
-**Create curl_sample file**
-
-_Chrome assumed, if you use something else, I trust you'll figure it out._
-
-Why do this? Because the public Slack API doesn't support the sidebar API methods, so instead, we'll just hook into an active session.
-
-1. Go to network tab and find a sample POST request - "boot" is a good one
-2. Copy the request as cURL
-3. Paste into a file like `curl_sample` - no edits needed
-
-⚠️ Bear in mind this file is all that would be needed to access your Slack account. Obviously it runs locally on your machine (you can see the code) but **I recommend deleting it once you're done, just to be safe.**.
-
-## Organize that sidebar!
-
+```json
+[
+  { "type": "prefix", "sidebar_section": "VIP Customers", "prefix": "cust-vip-" },
+  { "type": "prefix", "sidebar_section": "Customers", "prefix": "prosp-" },
+  { "type": "prefix", "sidebar_section": "Customers", "prefix": "cust-" },
+  { "type": "prefix", "sidebar_section": "Incidents", "prefix": "inc-" },
+  { "type": "prefix", "sidebar_section": "External", "prefix": "ext-" },
+  { "type": "prefix", "sidebar_section": "Projects", "prefix": "project-" },
+  { "type": "prefix", "sidebar_section": "Deals", "prefix": "deal-" },
+  { "type": "prefix", "sidebar_section": "Deals", "prefix": "rollout-" },
+  { "type": "prefix", "sidebar_section": "Deals", "prefix": "renewal-" },
+  { "type": "prefix", "sidebar_section": "Hiring", "prefix": "hiring-" },
+  { "type": "prefix", "sidebar_section": "Hiring", "prefix": "candidate-" }
+]
 ```
+
+## Organise that sidebar!
+
+```bash
 # To do a dry-run on what will move where
-bundle exec ruby organize.rb CURL_FILE RULES_FILE
+npm run organize -- rules.json
 
 # To actually organise, add a --write option
-bundle exec ruby organize.rb CURL_FILE RULES_FILE --write
+npm run organize -- rules.json --write
+```
+
+## Running tests
+
+```bash
+npm test
+
+# Or in watch mode
+npm run test:watch
 ```

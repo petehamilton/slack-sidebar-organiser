@@ -1,4 +1,6 @@
-.bundle
+node_modules
+dist
+.claude
 
 # Ignore these: they are configuration!
 # A few variations to try and avoid own-goals
@@ -7,3 +9,5 @@ RULES_FILE
 sample_*
 rules.json
 curl_sample.txt
+SAMPLE_CURL*
+.env
