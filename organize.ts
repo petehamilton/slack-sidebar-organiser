@@ -22,11 +22,12 @@ interface ChannelJSON {
 }
 
 interface RuleJSON {
-  type: 'prefix' | 'suffix' | 'keyword';
+  type: 'prefix' | 'suffix' | 'keyword' | 'exact';
   sidebar_section: string;
   prefix?: string;
   suffix?: string;
   keyword?: string;
+  name?: string;
 }
 
 interface SidebarMove {
@@ -77,6 +78,8 @@ export abstract class SidebarRule {
         return new SuffixSidebarRule(sidebarSectionId, json.suffix!);
       case 'keyword':
         return new KeywordSidebarRule(sidebarSectionId, json.keyword!);
+      case 'exact':
+        return new ExactSidebarRule(sidebarSectionId, json.name!);
       default:
         throw new Error(`Unknown rule type: ${(json as RuleJSON).type}`);
     }
@@ -122,6 +125,20 @@ export class KeywordSidebarRule extends SidebarRule {
 
   toString(): string {
     return `Keyword: #${this.keyword}`;
+  }
+}
+
+export class ExactSidebarRule extends SidebarRule {
+  constructor(sidebarSectionId: string, public readonly name: string) {
+    super(sidebarSectionId);
+  }
+
+  applies(channelName: string): boolean {
+    return channelName === this.name;
+  }
+
+  toString(): string {
+    return `Exact: #${this.name}`;
   }
 }
 

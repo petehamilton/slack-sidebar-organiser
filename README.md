@@ -44,8 +44,9 @@ To get your `xoxc` and `xoxd` tokens:
 
 **Create rules.json file**
 
-This file contains all your sidebar section rules. Three types are supported:
+This file contains all your sidebar section rules. Four types are supported:
 
+- `exact` - matches a channel with an exact name (e.g. `#general`)
 - `prefix` - matches channels which start with a prefix
 - `suffix` - matches channels which end with a suffix
 - `keyword` - matches channels which contain a given keyword
@@ -64,6 +65,8 @@ Mine looks like this:
 
 ```json
 [
+  { "type": "exact", "sidebar_section": "Leadership", "name": "general" },
+  { "type": "exact", "sidebar_section": "Leadership", "name": "leadership" },
   { "type": "prefix", "sidebar_section": "VIP Customers", "prefix": "cust-vip-" },
   { "type": "prefix", "sidebar_section": "Customers", "prefix": "prosp-" },
   { "type": "prefix", "sidebar_section": "Customers", "prefix": "cust-" },

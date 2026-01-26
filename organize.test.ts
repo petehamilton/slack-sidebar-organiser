@@ -6,6 +6,7 @@ import {
   PrefixSidebarRule,
   SuffixSidebarRule,
   KeywordSidebarRule,
+  ExactSidebarRule,
   SidebarRule,
   SidebarSection,
   RateLimiter,
@@ -223,6 +224,41 @@ describe('KeywordSidebarRule', () => {
 });
 
 // ============================================================================
+// ExactSidebarRule
+// ============================================================================
+
+describe('ExactSidebarRule', () => {
+  it('matches exact channel name only', () => {
+    const rule = new ExactSidebarRule('section-1', 'general');
+    expect(rule.applies('general')).toBe(true);
+  });
+
+  it('does not match when name differs', () => {
+    const rule = new ExactSidebarRule('section-1', 'general');
+    expect(rule.applies('general-announcements')).toBe(false);
+    expect(rule.applies('my-general')).toBe(false);
+    expect(rule.applies('genera')).toBe(false);
+    expect(rule.applies('')).toBe(false);
+  });
+
+  it('is case sensitive', () => {
+    const rule = new ExactSidebarRule('section-1', 'general');
+    expect(rule.applies('General')).toBe(false);
+    expect(rule.applies('GENERAL')).toBe(false);
+  });
+
+  it('formats toString correctly', () => {
+    const rule = new ExactSidebarRule('section-1', 'general');
+    expect(rule.toString()).toBe('Exact: #general');
+  });
+
+  it('stores sidebarSectionId correctly', () => {
+    const rule = new ExactSidebarRule('my-section-id', 'general');
+    expect(rule.sidebarSectionId).toBe('my-section-id');
+  });
+});
+
+// ============================================================================
 // SidebarRule.fromJSON
 // ============================================================================
 
@@ -231,10 +267,20 @@ describe('SidebarRule.fromJSON', () => {
     const prefix = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'cust-' });
     const suffix = SidebarRule.fromJSON('s1', { type: 'suffix', sidebar_section: 's1', suffix: '-proj' });
     const keyword = SidebarRule.fromJSON('s1', { type: 'keyword', sidebar_section: 's1', keyword: 'test' });
+    const exact = SidebarRule.fromJSON('s1', { type: 'exact', sidebar_section: 's1', name: 'general' });
 
     expect(prefix).toBeInstanceOf(PrefixSidebarRule);
     expect(suffix).toBeInstanceOf(SuffixSidebarRule);
     expect(keyword).toBeInstanceOf(KeywordSidebarRule);
+    expect(exact).toBeInstanceOf(ExactSidebarRule);
+  });
+
+  it('creates exact rule with correct name', () => {
+    const rule = SidebarRule.fromJSON('s1', { type: 'exact', sidebar_section: 's1', name: 'leadership' });
+    expect(rule).toBeInstanceOf(ExactSidebarRule);
+    expect((rule as ExactSidebarRule).name).toBe('leadership');
+    expect(rule.applies('leadership')).toBe(true);
+    expect(rule.applies('leadership-team')).toBe(false);
   });
 
   it('throws error for unknown rule type', () => {
