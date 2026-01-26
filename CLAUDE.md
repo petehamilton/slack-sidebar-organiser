@@ -27,6 +27,22 @@ npm run organize
 
 ---
 
+## Development Guidelines
+
+**IMPORTANT: All code changes must include tests.**
+
+When modifying or adding code to this project:
+
+1. **Always write tests** for any new functionality or bug fixes
+2. **Run `npm test`** before considering any code change complete
+3. **Ensure all tests pass** - do not submit changes with failing tests
+4. **Add tests for edge cases** - especially around rule matching behaviour
+5. **Update existing tests** if you change behaviour that existing tests cover
+
+Tests live in `organize.test.ts` and use Vitest. Follow the existing test patterns when adding new tests.
+
+---
+
 ## Rules File Format
 
 The rules file is a JSON array of rule objects. This is the primary file you'll be creating and editing.
@@ -237,6 +253,15 @@ Tests cover:
 ---
 
 ## Common Tasks for Agents
+
+### Task: Modify or extend the codebase
+
+When making any code changes:
+
+1. Read and understand the existing code and tests
+2. Write tests for your changes **before or alongside** implementation
+3. Run `npm test` to ensure all tests pass
+4. Never mark a task as complete if tests are failing
 
 ### Task: Create a rules file for a user
 
