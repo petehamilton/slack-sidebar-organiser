@@ -54,10 +54,11 @@ type RulesFile = Rule[];
 
 interface Rule {
   type: 'prefix' | 'suffix' | 'keyword';
-  sidebar_section: string;  // Section name OR section ID
-  prefix?: string;          // Required when type is 'prefix'
-  suffix?: string;          // Required when type is 'suffix'
-  keyword?: string;         // Required when type is 'keyword'
+  sidebar_section: string;      // Section name OR section ID
+  prefix?: string;              // Required when type is 'prefix'
+  suffix?: string;              // Required when type is 'suffix'
+  keyword?: string;             // Required when type is 'keyword'
+  skip_if_organized?: boolean;  // If true, don't move channels already in a custom section (default: false)
 }
 ```
 
@@ -82,6 +83,8 @@ interface Rule {
 4. **Keyword matches substrings**: `keyword: "test"` matches `testing`, `test`, `my-test-channel`.
 
 5. **Empty keyword matches everything**: An empty string `""` as a keyword will match all channels (this is a known edge case).
+
+6. **`skip_if_organized`**: When set to `true` on a rule, channels that are already in a user-created sidebar section will not be moved — only channels in Slack's built-in default sections (e.g. "Channels") are affected. This respects manual organisation. Defaults to `false`.
 
 ### Example Rules File
 
@@ -124,6 +127,11 @@ To add a rule, append to the JSON array:
 **Match channels containing a topic:**
 ```json
 { "type": "keyword", "sidebar_section": "Hiring", "keyword": "candidate" }
+```
+
+**Only move channels that haven't been manually organised:**
+```json
+{ "type": "prefix", "sidebar_section": "Customers", "prefix": "cust-", "skip_if_organized": true }
 ```
 
 **Create hierarchy with specific-before-general:**
