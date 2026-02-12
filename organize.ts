@@ -10,6 +10,7 @@ import * as fs from 'fs';
 interface SidebarSectionJSON {
   channel_section_id: string;
   name: string;
+  emoji?: string;
   type: string;
   channel_ids_page: { channel_ids: string[] };
 }
@@ -42,23 +43,31 @@ interface SidebarMove {
 // SidebarSection
 // ============================================================================
 
+export const SECTION_CHANNEL_LIMIT = 500;
+
 export class SidebarSection {
   constructor(
     public readonly id: string,
     public readonly name: string,
-    public readonly channelIds: string[]
+    public readonly channelIds: string[],
+    public readonly emoji?: string
   ) {}
 
   static fromJSON(json: SidebarSectionJSON): SidebarSection {
     return new SidebarSection(
       json.channel_section_id,
       json.name,
-      json.channel_ids_page.channel_ids
+      json.channel_ids_page.channel_ids,
+      json.emoji
     );
   }
 
   includesChannel(channelId: string): boolean {
     return this.channelIds.includes(channelId);
+  }
+
+  availableCapacity(): number {
+    return Math.max(0, SECTION_CHANNEL_LIMIT - this.channelIds.length);
   }
 }
 
@@ -196,6 +205,39 @@ export function getSuffixes(channelNames: string[]): Map<string, number> {
   return suffixes;
 }
 
+export function findOverflowSections(baseName: string, allSections: SidebarSection[]): SidebarSection[] {
+  const escaped = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^${escaped} \\((\\d+)\\)$`);
+
+  return allSections
+    .filter(s => pattern.test(s.name))
+    .sort((a, b) => {
+      const aNum = parseInt(a.name.match(pattern)![1]);
+      const bNum = parseInt(b.name.match(pattern)![1]);
+      return aNum - bNum;
+    });
+}
+
+export function distributeMovesAcrossSections(
+  moves: SidebarMove[],
+  orderedSections: SidebarSection[],
+): void {
+  let moveIdx = 0;
+
+  for (const section of orderedSections) {
+    if (moveIdx >= moves.length) break;
+
+    const capacity = section.availableCapacity();
+    if (capacity <= 0) continue;
+
+    const batchEnd = Math.min(moveIdx + capacity, moves.length);
+    for (let i = moveIdx; i < batchEnd; i++) {
+      moves[i].toSidebarSectionId = section.id;
+    }
+    moveIdx = batchEnd;
+  }
+}
+
 // ============================================================================
 // Rate Limiter
 // ============================================================================
@@ -329,6 +371,26 @@ Content-Disposition: form-data; name="remove"
     }
 
     return this.makeRequest('/api/users.channelSections.channels.bulkUpdate', body);
+  }
+
+  async createSidebarSection(name: string, emoji?: string): Promise<{ ok: boolean; channel_section_id?: string; error?: string }> {
+    const body = `
+------BOUNDARY
+Content-Disposition: form-data; name="token"
+
+${this.token}
+------BOUNDARY
+Content-Disposition: form-data; name="name"
+
+${name}
+------BOUNDARY
+Content-Disposition: form-data; name="emoji"
+
+${emoji || ':file_folder:'}
+------BOUNDARY
+`;
+
+    return this.makeRequest('/api/users.channelSections.create', body);
   }
 
   async muteChannels(channelIds: string[]): Promise<{ ok: boolean; error?: string }> {
@@ -703,6 +765,18 @@ async function main(): Promise<void> {
   const skippedChannels: Array<{ channelId: string; sectionId: string }> = [];
   const channelsToMute: string[] = [];
 
+  // Cache overflow section IDs per target so we don't re-run the regex for every channel
+  const overflowIdsCache = new Map<string, Set<string>>();
+  function getOverflowIds(section: SidebarSection): Set<string> {
+    if (!overflowIdsCache.has(section.id)) {
+      overflowIdsCache.set(
+        section.id,
+        new Set(findOverflowSections(section.name, sidebarSections).map(s => s.id))
+      );
+    }
+    return overflowIdsCache.get(section.id)!;
+  }
+
   for (const [channelId, channel] of channels) {
     const rule = sidebarRules.find(r => r.applies(channel.name));
     if (!rule) continue;
@@ -723,6 +797,9 @@ async function main(): Promise<void> {
 
     // Find current section (if any)
     const fromSidebarSection = sidebarSections.find(s => s.includesChannel(channelId));
+
+    // Skip if already in an overflow section of the target
+    if (fromSidebarSection && getOverflowIds(toSidebarSection).has(fromSidebarSection.id)) continue;
 
     // Channel is already in a user-created section — respect manual organisation
     if (rule.skipIfOrganized && fromSidebarSection) {
@@ -783,6 +860,44 @@ async function main(): Promise<void> {
   if (channelsToMute.length > 0) {
     console.log();
     console.log(`${channelsToMute.length} ${channelsToMute.length === 1 ? 'channel' : 'channels'} to mute.`);
+  }
+
+  // Check for section capacity overflows
+  const overflowingSections = new Map<string, { section: SidebarSection; moves: SidebarMove[]; overflow: number }>();
+  if (sidebarMoves.length > 0) {
+    const movesByTarget = new Map<string, SidebarMove[]>();
+    for (const move of sidebarMoves) {
+      const list = movesByTarget.get(move.toSidebarSectionId) || [];
+      list.push(move);
+      movesByTarget.set(move.toSidebarSectionId, list);
+    }
+
+    for (const [sectionId, targetMoves] of movesByTarget) {
+      const section = getSidebarSection(sectionId);
+      if (!section) continue;
+      const projected = section.channelIds.length + targetMoves.length;
+      if (projected > SECTION_CHANNEL_LIMIT) {
+        overflowingSections.set(sectionId, {
+          section,
+          moves: targetMoves,
+          overflow: projected - SECTION_CHANNEL_LIMIT,
+        });
+      }
+    }
+
+    if (overflowingSections.size > 0) {
+      console.log();
+      console.log('CAPACITY WARNINGS');
+      console.log('=================');
+      for (const [, { section, moves: targetMoves, overflow }] of overflowingSections) {
+        const projected = section.channelIds.length + targetMoves.length;
+        const sectionsNeeded = Math.ceil(overflow / SECTION_CHANNEL_LIMIT);
+        console.log(`  "${section.name}" would have ${projected} channels (limit: ${SECTION_CHANNEL_LIMIT}, overflow: ${overflow})`);
+        if (!writeChanges) {
+          console.log(`    In --write mode, ${sectionsNeeded} overflow section(s) would be created automatically.`);
+        }
+      }
+    }
   }
 
   if (!writeChanges) {
@@ -849,6 +964,47 @@ async function main(): Promise<void> {
 
   const errors: Array<{ context: string; detail: any }> = [];
 
+  // Handle overflow: create overflow sections and redistribute moves
+  if (overflowingSections.size > 0) {
+    console.log();
+    for (const [, { section, moves: sectionMoves }] of overflowingSections) {
+      const existingOverflows = findOverflowSections(section.name, sidebarSections);
+      const allTargetSections: SidebarSection[] = [section, ...existingOverflows];
+
+      const totalCapacity = allTargetSections.reduce((sum, s) => sum + s.availableCapacity(), 0);
+
+      if (totalCapacity < sectionMoves.length) {
+        const additionalNeeded = sectionMoves.length - totalCapacity;
+        const sectionsToCreate = Math.ceil(additionalNeeded / SECTION_CHANNEL_LIMIT);
+
+        let nextNumber = 2;
+        if (existingOverflows.length > 0) {
+          const lastMatch = existingOverflows[existingOverflows.length - 1].name.match(/\((\d+)\)$/);
+          nextNumber = lastMatch ? parseInt(lastMatch[1]) + 1 : 2;
+        }
+
+        for (let i = 0; i < sectionsToCreate; i++) {
+          const overflowName = `${section.name} (${nextNumber + i})`;
+          console.log(`Creating overflow section: "${overflowName}"`);
+
+          const result = await client.createSidebarSection(overflowName, section.emoji);
+
+          if (result.ok && result.channel_section_id) {
+            const newSection = new SidebarSection(result.channel_section_id, overflowName, []);
+            sidebarSections.push(newSection);
+            allTargetSections.push(newSection);
+            console.log(`  Created: ${newSection.name} (${newSection.id})`);
+          } else if (!result.ok) {
+            console.log(`  Failed to create "${overflowName}": ${result.error || 'unknown error'}`);
+            errors.push({ context: `create section "${overflowName}"`, detail: result });
+          }
+        }
+      }
+
+      distributeMovesAcrossSections(sectionMoves, allTargetSections);
+    }
+  }
+
   // Move channels
   if (sidebarMoves.length > 0) {
     console.log();
@@ -862,8 +1018,16 @@ async function main(): Promise<void> {
     const progressBar = new ProgressBar(sidebarMoves.length);
 
     const successfulMoves: SidebarMove[] = [];
+    const fullSections = new Set<string>();
+    let skippedAsFull = 0;
 
     for (const move of sidebarMoves) {
+      if (fullSections.has(move.toSidebarSectionId)) {
+        skippedAsFull++;
+        progressBar.increment();
+        continue;
+      }
+
       await limiter.wait();
 
       const result = await client.sidebarMove(
@@ -876,12 +1040,22 @@ async function main(): Promise<void> {
 
       if (result.ok) {
         successfulMoves.push(move);
+      } else if (result.error === 'too_many_channels') {
+        fullSections.add(move.toSidebarSectionId);
+        skippedAsFull++;
+        const sectionName = getSidebarSection(move.toSidebarSectionId)?.name;
+        console.log(`\nSection "${sectionName}" is full (${SECTION_CHANNEL_LIMIT} channel limit). Skipping remaining moves to this section.`);
       } else {
         errors.push({ context: `move #${channels.get(move.channelId)?.name}`, detail: result });
       }
     }
 
     progressBar.finish();
+
+    if (skippedAsFull > 0) {
+      console.log();
+      console.log(`${skippedAsFull} ${skippedAsFull === 1 ? 'channel' : 'channels'} couldn't be moved due to section capacity limits.`);
+    }
 
     console.log();
     console.log(`Organised ${successfulMoves.length} channels`);

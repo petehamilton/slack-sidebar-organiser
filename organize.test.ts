@@ -10,6 +10,9 @@ import {
   SidebarRule,
   SidebarSection,
   RateLimiter,
+  SECTION_CHANNEL_LIMIT,
+  findOverflowSections,
+  distributeMovesAcrossSections,
 } from './organize';
 
 // ============================================================================
@@ -505,5 +508,179 @@ describe('RateLimiter', () => {
     await p2;
 
     expect(results).toEqual([1, 2]);
+  });
+});
+
+// ============================================================================
+// SidebarSection.availableCapacity
+// ============================================================================
+
+describe('SidebarSection.availableCapacity', () => {
+  it('returns full capacity for an empty section', () => {
+    const section = new SidebarSection('id', 'name', []);
+    expect(section.availableCapacity()).toBe(SECTION_CHANNEL_LIMIT);
+  });
+
+  it('returns remaining capacity for a partially filled section', () => {
+    const section = new SidebarSection('id', 'name', new Array(450).fill('ch'));
+    expect(section.availableCapacity()).toBe(50);
+  });
+
+  it('returns zero when at the limit', () => {
+    const section = new SidebarSection('id', 'name', new Array(SECTION_CHANNEL_LIMIT).fill('ch'));
+    expect(section.availableCapacity()).toBe(0);
+  });
+
+  it('returns zero when over the limit', () => {
+    const section = new SidebarSection('id', 'name', new Array(SECTION_CHANNEL_LIMIT + 10).fill('ch'));
+    expect(section.availableCapacity()).toBe(0);
+  });
+});
+
+// ============================================================================
+// findOverflowSections
+// ============================================================================
+
+describe('findOverflowSections', () => {
+  it('finds overflow sections matching the base name', () => {
+    const sections = [
+      new SidebarSection('s1', 'Customers: muted', []),
+      new SidebarSection('s2', 'Customers: muted (2)', []),
+      new SidebarSection('s3', 'Customers: muted (3)', []),
+      new SidebarSection('s4', 'Projects', []),
+    ];
+
+    const result = findOverflowSections('Customers: muted', sections);
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('s2');
+    expect(result[1].id).toBe('s3');
+  });
+
+  it('returns empty array when no overflow sections exist', () => {
+    const sections = [
+      new SidebarSection('s1', 'Customers: muted', []),
+      new SidebarSection('s2', 'Projects', []),
+    ];
+
+    expect(findOverflowSections('Customers: muted', sections)).toEqual([]);
+  });
+
+  it('sorts by overflow number', () => {
+    const sections = [
+      new SidebarSection('s5', 'Alerts (5)', []),
+      new SidebarSection('s2', 'Alerts (2)', []),
+      new SidebarSection('s10', 'Alerts (10)', []),
+    ];
+
+    const result = findOverflowSections('Alerts', sections);
+    expect(result.map(s => s.id)).toEqual(['s2', 's5', 's10']);
+  });
+
+  it('does not match partial name overlaps', () => {
+    const sections = [
+      new SidebarSection('s1', 'Cust (2)', []),
+      new SidebarSection('s2', 'Customers (2)', []),
+    ];
+
+    expect(findOverflowSections('Customers', sections)).toEqual([
+      expect.objectContaining({ id: 's2' }),
+    ]);
+    expect(findOverflowSections('Cust', sections)).toEqual([
+      expect.objectContaining({ id: 's1' }),
+    ]);
+  });
+
+  it('handles base names containing regex metacharacters', () => {
+    const sections = [
+      new SidebarSection('s1', 'Team (ops) (2)', []),
+    ];
+
+    expect(findOverflowSections('Team (ops)', sections)).toHaveLength(1);
+  });
+
+  it('does not match non-numeric suffixes', () => {
+    const sections = [
+      new SidebarSection('s1', 'Alerts (abc)', []),
+      new SidebarSection('s2', 'Alerts (2)', []),
+    ];
+
+    expect(findOverflowSections('Alerts', sections)).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// distributeMovesAcrossSections
+// ============================================================================
+
+describe('distributeMovesAcrossSections', () => {
+  function makeMove(channelId: string, toSectionId: string) {
+    return { channelId, fromSidebarSectionId: null, toSidebarSectionId: toSectionId };
+  }
+
+  it('keeps all moves in the original section when capacity allows', () => {
+    const section = new SidebarSection('s1', 'Test', new Array(498).fill('ch'));
+    const moves = [makeMove('ch1', 's1'), makeMove('ch2', 's1')];
+
+    distributeMovesAcrossSections(moves, [section]);
+
+    expect(moves[0].toSidebarSectionId).toBe('s1');
+    expect(moves[1].toSidebarSectionId).toBe('s1');
+  });
+
+  it('spills moves to overflow sections when original is full', () => {
+    const original = new SidebarSection('s1', 'Test', new Array(SECTION_CHANNEL_LIMIT).fill('ch'));
+    const overflow = new SidebarSection('s2', 'Test (2)', []);
+    const moves = [makeMove('ch1', 's1'), makeMove('ch2', 's1'), makeMove('ch3', 's1')];
+
+    distributeMovesAcrossSections(moves, [original, overflow]);
+
+    expect(moves[0].toSidebarSectionId).toBe('s2');
+    expect(moves[1].toSidebarSectionId).toBe('s2');
+    expect(moves[2].toSidebarSectionId).toBe('s2');
+  });
+
+  it('fills original remaining capacity before spilling', () => {
+    const original = new SidebarSection('s1', 'Test', new Array(499).fill('ch'));
+    const overflow = new SidebarSection('s2', 'Test (2)', []);
+    const moves = [makeMove('ch1', 's1'), makeMove('ch2', 's1'), makeMove('ch3', 's1')];
+
+    distributeMovesAcrossSections(moves, [original, overflow]);
+
+    expect(moves[0].toSidebarSectionId).toBe('s1');
+    expect(moves[1].toSidebarSectionId).toBe('s2');
+    expect(moves[2].toSidebarSectionId).toBe('s2');
+  });
+
+  it('distributes across multiple overflow sections', () => {
+    const original = new SidebarSection('s1', 'Test', new Array(SECTION_CHANNEL_LIMIT).fill('ch'));
+    const overflow1 = new SidebarSection('s2', 'Test (2)', new Array(499).fill('ch'));
+    const overflow2 = new SidebarSection('s3', 'Test (3)', []);
+    const moves = [makeMove('ch1', 's1'), makeMove('ch2', 's1'), makeMove('ch3', 's1')];
+
+    distributeMovesAcrossSections(moves, [original, overflow1, overflow2]);
+
+    expect(moves[0].toSidebarSectionId).toBe('s2');
+    expect(moves[1].toSidebarSectionId).toBe('s3');
+    expect(moves[2].toSidebarSectionId).toBe('s3');
+  });
+
+  it('leaves moves unchanged when no capacity available', () => {
+    const original = new SidebarSection('s1', 'Test', new Array(SECTION_CHANNEL_LIMIT).fill('ch'));
+    const moves = [makeMove('ch1', 's1'), makeMove('ch2', 's1')];
+
+    distributeMovesAcrossSections(moves, [original]);
+
+    // Moves still point at the original — they'll fail at API time
+    expect(moves[0].toSidebarSectionId).toBe('s1');
+    expect(moves[1].toSidebarSectionId).toBe('s1');
+  });
+
+  it('handles empty moves array', () => {
+    const section = new SidebarSection('s1', 'Test', []);
+    const moves: ReturnType<typeof makeMove>[] = [];
+
+    distributeMovesAcrossSections(moves, [section]);
+
+    expect(moves).toEqual([]);
   });
 });
