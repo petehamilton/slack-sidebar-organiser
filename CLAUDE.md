@@ -54,13 +54,16 @@ type RulesFile = Rule[];
 
 interface Rule {
   type: 'prefix' | 'suffix' | 'keyword';
-  sidebar_section: string;      // Section name OR section ID
+  sidebar_section?: string;     // Section name OR section ID (optional if mute-only)
   prefix?: string;              // Required when type is 'prefix'
   suffix?: string;              // Required when type is 'suffix'
   keyword?: string;             // Required when type is 'keyword'
   skip_if_organized?: boolean;  // If true, don't move channels already in a custom section (default: false)
+  mute?: boolean;               // If true, mute matching channels (default: false)
 }
 ```
+
+At least one of `sidebar_section` or `mute: true` should be present for a rule to have any effect.
 
 ### Rule Types
 
@@ -86,6 +89,8 @@ interface Rule {
 
 6. **`skip_if_organized`**: When set to `true` on a rule, channels that are already in a user-created sidebar section will not be moved — only channels in Slack's built-in default sections (e.g. "Channels") are affected. This respects manual organisation. Defaults to `false`.
 
+7. **Channel muting**: Rules with `mute: true` will mute matching channels. This can be combined with `sidebar_section` (move and mute) or used alone (mute only, no `sidebar_section` needed). Muting is done in a single bulk API call, so it's fast and not rate-limited like sidebar moves. Muting is collected independently of move logic — a channel will be muted even if it's already in the correct section or skipped by `skip_if_organized`.
+
 ### Example Rules File
 
 ```json
@@ -93,7 +98,8 @@ interface Rule {
   { "type": "prefix", "sidebar_section": "VIP Customers", "prefix": "cust-vip-" },
   { "type": "prefix", "sidebar_section": "Customers", "prefix": "cust-" },
   { "type": "prefix", "sidebar_section": "Incidents", "prefix": "inc-" },
-  { "type": "suffix", "sidebar_section": "Alerts", "suffix": "-alerts" },
+  { "type": "suffix", "sidebar_section": "Alerts", "suffix": "-alerts", "mute": true },
+  { "type": "prefix", "prefix": "bot-", "mute": true },
   { "type": "keyword", "sidebar_section": "Standups", "keyword": "standup" }
 ]
 ```
@@ -142,14 +148,24 @@ To add a rule, append to the JSON array:
 ]
 ```
 
+**Mute noisy channels without moving them:**
+```json
+{ "type": "prefix", "prefix": "bot-", "mute": true }
+```
+
+**Move and mute channels:**
+```json
+{ "type": "suffix", "sidebar_section": "Alerts", "suffix": "-alerts", "mute": true }
+```
+
 ### Validation Checklist
 
 When creating or editing rules:
 
 - [ ] JSON is valid (no trailing commas, proper quoting)
-- [ ] Each rule has `type` and `sidebar_section` fields
+- [ ] Each rule has `type` and at least one of `sidebar_section` or `mute: true`
 - [ ] Each rule has the matching field (`prefix`, `suffix`, or `keyword`) for its type
-- [ ] `sidebar_section` matches an existing section name or ID in Slack
+- [ ] `sidebar_section` (if present) matches an existing section name or ID in Slack
 - [ ] More specific rules come before general rules
 - [ ] No duplicate rules (same type + value + section)
 

@@ -23,12 +23,13 @@ interface ChannelJSON {
 
 interface RuleJSON {
   type: 'prefix' | 'suffix' | 'keyword' | 'exact';
-  sidebar_section: string;
+  sidebar_section?: string;
   prefix?: string;
   suffix?: string;
   keyword?: string;
   name?: string;
   skip_if_organized?: boolean;
+  mute?: boolean;
 }
 
 interface SidebarMove {
@@ -67,24 +68,26 @@ export class SidebarSection {
 
 export abstract class SidebarRule {
   constructor(
-    public readonly sidebarSectionId: string,
+    public readonly sidebarSectionId: string | null,
     public readonly skipIfOrganized: boolean = false,
+    public readonly mute: boolean = false,
   ) {}
 
   abstract applies(channelName: string): boolean;
   abstract toString(): string;
 
-  static fromJSON(sidebarSectionId: string, json: RuleJSON): SidebarRule {
+  static fromJSON(sidebarSectionId: string | null, json: RuleJSON): SidebarRule {
     const skip = json.skip_if_organized ?? false;
+    const mute = json.mute ?? false;
     switch (json.type) {
       case 'prefix':
-        return new PrefixSidebarRule(sidebarSectionId, json.prefix!, skip);
+        return new PrefixSidebarRule(sidebarSectionId, json.prefix!, skip, mute);
       case 'suffix':
-        return new SuffixSidebarRule(sidebarSectionId, json.suffix!, skip);
+        return new SuffixSidebarRule(sidebarSectionId, json.suffix!, skip, mute);
       case 'keyword':
-        return new KeywordSidebarRule(sidebarSectionId, json.keyword!, skip);
+        return new KeywordSidebarRule(sidebarSectionId, json.keyword!, skip, mute);
       case 'exact':
-        return new ExactSidebarRule(sidebarSectionId, json.name!, skip);
+        return new ExactSidebarRule(sidebarSectionId, json.name!, skip, mute);
       default:
         throw new Error(`Unknown rule type: ${(json as RuleJSON).type}`);
     }
@@ -92,8 +95,8 @@ export abstract class SidebarRule {
 }
 
 export class PrefixSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly prefix: string, skipIfOrganized: boolean = false) {
-    super(sidebarSectionId, skipIfOrganized);
+  constructor(sidebarSectionId: string | null, public readonly prefix: string, skipIfOrganized: boolean = false, mute: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized, mute);
   }
 
   applies(channelName: string): boolean {
@@ -106,8 +109,8 @@ export class PrefixSidebarRule extends SidebarRule {
 }
 
 export class SuffixSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly suffix: string, skipIfOrganized: boolean = false) {
-    super(sidebarSectionId, skipIfOrganized);
+  constructor(sidebarSectionId: string | null, public readonly suffix: string, skipIfOrganized: boolean = false, mute: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized, mute);
   }
 
   applies(channelName: string): boolean {
@@ -120,8 +123,8 @@ export class SuffixSidebarRule extends SidebarRule {
 }
 
 export class KeywordSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly keyword: string, skipIfOrganized: boolean = false) {
-    super(sidebarSectionId, skipIfOrganized);
+  constructor(sidebarSectionId: string | null, public readonly keyword: string, skipIfOrganized: boolean = false, mute: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized, mute);
   }
 
   applies(channelName: string): boolean {
@@ -134,8 +137,8 @@ export class KeywordSidebarRule extends SidebarRule {
 }
 
 export class ExactSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly name: string, skipIfOrganized: boolean = false) {
-    super(sidebarSectionId, skipIfOrganized);
+  constructor(sidebarSectionId: string | null, public readonly name: string, skipIfOrganized: boolean = false, mute: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized, mute);
   }
 
   applies(channelName: string): boolean {
@@ -328,6 +331,38 @@ Content-Disposition: form-data; name="remove"
     return this.makeRequest('/api/users.channelSections.channels.bulkUpdate', body);
   }
 
+  async muteChannels(channelIds: string[]): Promise<{ ok: boolean; error?: string }> {
+    const body = `
+------BOUNDARY
+Content-Disposition: form-data; name="token"
+
+${this.token}
+------BOUNDARY
+Content-Disposition: form-data; name="name"
+
+muted
+------BOUNDARY
+Content-Disposition: form-data; name="value"
+
+true
+------BOUNDARY
+Content-Disposition: form-data; name="channel_ids"
+
+${channelIds.join(',')}
+------BOUNDARY
+Content-Disposition: form-data; name="global"
+
+false
+------BOUNDARY
+Content-Disposition: form-data; name="sync"
+
+false
+------BOUNDARY
+`;
+
+    return this.makeRequest('/api/users.prefs.setNotifications', body);
+  }
+
   private makeRequest(
     path: string,
     body: string,
@@ -489,24 +524,38 @@ async function main(): Promise<void> {
     console.log('=============');
 
     sidebarRules = sidebarRulesRaw.map(json => {
-      const sidebarSection =
-        sidebarSections.find(s => json.sidebar_section === s.id) ||
-        sidebarSections.find(s => json.sidebar_section === s.name);
+      let sidebarSectionId: string | null = null;
 
-      if (!sidebarSection) {
-        console.log(`Couldn't find sidebar section for ${json.sidebar_section}`);
-        process.exit(1);
+      if (json.sidebar_section) {
+        const sidebarSection =
+          sidebarSections.find(s => json.sidebar_section === s.id) ||
+          sidebarSections.find(s => json.sidebar_section === s.name);
+
+        if (!sidebarSection) {
+          console.log(`Couldn't find sidebar section for ${json.sidebar_section}`);
+          process.exit(1);
+        }
+
+        sidebarSectionId = sidebarSection.id;
       }
 
-      return SidebarRule.fromJSON(sidebarSection.id, json);
+      return SidebarRule.fromJSON(sidebarSectionId, json);
     });
 
     const maxRuleLength = Math.max(...sidebarRules.map(r => r.toString().length));
     for (const rule of sidebarRules) {
-      const sidebar = getSidebarSection(rule.sidebarSectionId);
-      console.log(
-        `${rule.toString().padEnd(maxRuleLength)} ➜ ${sidebar?.name} (${rule.sidebarSectionId})`
-      );
+      const parts: string[] = [rule.toString().padEnd(maxRuleLength)];
+
+      if (rule.sidebarSectionId) {
+        const sidebar = getSidebarSection(rule.sidebarSectionId);
+        parts.push(`➜ ${sidebar?.name} (${rule.sidebarSectionId})`);
+      }
+
+      if (rule.mute) {
+        parts.push('[mute]');
+      }
+
+      console.log(parts.join(' '));
     }
   }
 
@@ -648,16 +697,23 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Calculate moves
+  // Calculate moves and mutes
   let totalMatches = 0;
   const sidebarMoves: SidebarMove[] = [];
   const skippedChannels: Array<{ channelId: string; sectionId: string }> = [];
+  const channelsToMute: string[] = [];
 
   for (const [channelId, channel] of channels) {
     const rule = sidebarRules.find(r => r.applies(channel.name));
     if (!rule) continue;
 
     totalMatches++;
+
+    if (rule.mute) {
+      channelsToMute.push(channelId);
+    }
+
+    if (!rule.sidebarSectionId) continue;
 
     const toSidebarSection = getSidebarSection(rule.sidebarSectionId);
     if (!toSidebarSection) continue;
@@ -711,16 +767,23 @@ async function main(): Promise<void> {
     }
   }
 
-  if (sidebarMoves.length === 0) {
+  if (sidebarMoves.length === 0 && channelsToMute.length === 0) {
     console.log();
     console.log('Good news - your sidebar is already completely organised, so nothing to do here!');
     process.exit(0);
   }
 
-  console.log();
-  console.log(
-    `${sidebarMoves.length} ${sidebarMoves.length === 1 ? 'is' : 'are'} in the wrong place!`
-  );
+  if (sidebarMoves.length > 0) {
+    console.log();
+    console.log(
+      `${sidebarMoves.length} ${sidebarMoves.length === 1 ? 'is' : 'are'} in the wrong place!`
+    );
+  }
+
+  if (channelsToMute.length > 0) {
+    console.log();
+    console.log(`${channelsToMute.length} ${channelsToMute.length === 1 ? 'channel' : 'channels'} to mute.`);
+  }
 
   if (!writeChanges) {
     console.log();
@@ -729,19 +792,113 @@ async function main(): Promise<void> {
 
     console.log();
     console.log("You didn't pass a --write flag, so we're just going to do a dry run for now.");
-    console.log();
-    console.log('We would move:');
-    console.log();
 
-    // Group by destination
-    const movesByDestination = new Map<string, SidebarMove[]>();
-    for (const move of sidebarMoves) {
-      const moves = movesByDestination.get(move.toSidebarSectionId) || [];
-      moves.push(move);
-      movesByDestination.set(move.toSidebarSectionId, moves);
+    if (sidebarMoves.length > 0) {
+      console.log();
+      console.log('We would move:');
+      console.log();
+
+      // Group by destination
+      const movesByDestination = new Map<string, SidebarMove[]>();
+      for (const move of sidebarMoves) {
+        const moves = movesByDestination.get(move.toSidebarSectionId) || [];
+        moves.push(move);
+        movesByDestination.set(move.toSidebarSectionId, moves);
+      }
+
+      for (const [toSidebarSectionId, moves] of movesByDestination) {
+        const toSidebarSection = getSidebarSection(toSidebarSectionId);
+        console.log(`➜ ${toSidebarSection?.name} (${toSidebarSectionId})`);
+
+        for (const move of moves) {
+          const channel = channels.get(move.channelId);
+          console.log(`    #${channel?.name} (${move.channelId})`);
+        }
+
+        console.log();
+      }
     }
 
-    for (const [toSidebarSectionId, moves] of movesByDestination) {
+    if (channelsToMute.length > 0) {
+      console.log();
+      console.log('We would mute:');
+      console.log();
+
+      for (const channelId of channelsToMute) {
+        const channel = channels.get(channelId);
+        console.log(`    #${channel?.name} (${channelId})`);
+      }
+
+      console.log();
+    }
+
+    console.log();
+    console.log('---');
+    console.log();
+    console.log('To actually apply these changes, re-run this with a --write flag:');
+    console.log();
+    console.log(`    npx tsx organize.ts ${rulesFile} --write`);
+    console.log();
+    console.log();
+    process.exit(0);
+  }
+
+  // Actually apply changes
+  console.log();
+  console.log("Let's sort it!");
+
+  const errors: Array<{ context: string; detail: any }> = [];
+
+  // Move channels
+  if (sidebarMoves.length > 0) {
+    console.log();
+    console.log('Note: Rate limits are harsh here, so we\'ll do as many as we can, but');
+    console.log('      the process will likely pause periodically whilst we let the');
+    console.log('      rate limit recover.');
+    console.log();
+
+    // Slack Tier 2 rate limit: max 20/min
+    const limiter = new RateLimiter(20, 60000);
+    const progressBar = new ProgressBar(sidebarMoves.length);
+
+    const successfulMoves: SidebarMove[] = [];
+
+    for (const move of sidebarMoves) {
+      await limiter.wait();
+
+      const result = await client.sidebarMove(
+        move.channelId,
+        move.toSidebarSectionId,
+        move.fromSidebarSectionId
+      );
+
+      progressBar.increment();
+
+      if (result.ok) {
+        successfulMoves.push(move);
+      } else {
+        errors.push({ context: `move #${channels.get(move.channelId)?.name}`, detail: result });
+      }
+    }
+
+    progressBar.finish();
+
+    console.log();
+    console.log(`Organised ${successfulMoves.length} channels`);
+
+    console.log();
+    console.log('We moved:');
+    console.log();
+
+    // Group successful moves by destination
+    const successByDestination = new Map<string, SidebarMove[]>();
+    for (const move of successfulMoves) {
+      const moves = successByDestination.get(move.toSidebarSectionId) || [];
+      moves.push(move);
+      successByDestination.set(move.toSidebarSectionId, moves);
+    }
+
+    for (const [toSidebarSectionId, moves] of successByDestination) {
       const toSidebarSection = getSidebarSection(toSidebarSectionId);
       console.log(`➜ ${toSidebarSection?.name} (${toSidebarSectionId})`);
 
@@ -754,99 +911,41 @@ async function main(): Promise<void> {
     }
 
     console.log();
-    console.log('---');
+    console.log('Summary:');
     console.log();
-    console.log('To actually move your channels, re-run this with a --write flag:');
-    console.log();
-    console.log(`    npx tsx organize.ts ${rulesFile} --write`);
-    console.log();
-    console.log();
-    process.exit(0);
+
+    const summaryByDestination = new Map<string, number>();
+    for (const move of sidebarMoves) {
+      summaryByDestination.set(
+        move.toSidebarSectionId,
+        (summaryByDestination.get(move.toSidebarSectionId) || 0) + 1
+      );
+    }
+
+    for (const [sidebarSectionId, count] of summaryByDestination) {
+      const sidebarSection = getSidebarSection(sidebarSectionId);
+      console.log(`    Moved ${count} channels to ${sidebarSection?.name}`);
+    }
   }
 
-  // Actually move channels
-  console.log();
-  console.log("Let's sort it!");
-  console.log();
-  console.log('Note: Rate limits are harsh here, so we\'ll do as many as we can, but');
-  console.log('      the process will likely pause periodically whilst we let the');
-  console.log('      rate limit recover.');
-  console.log();
+  // Mute channels
+  if (channelsToMute.length > 0) {
+    console.log();
+    console.log(`Muting ${channelsToMute.length} ${channelsToMute.length === 1 ? 'channel' : 'channels'}...`);
 
-  // Slack Tier 2 rate limit: max 20/min
-  const limiter = new RateLimiter(20, 60000);
-  const progressBar = new ProgressBar(sidebarMoves.length);
-
-  const errors: Array<{ move: SidebarMove; result: any }> = [];
-  const successfulMoves: SidebarMove[] = [];
-
-  for (const move of sidebarMoves) {
-    await limiter.wait();
-
-    const result = await client.sidebarMove(
-      move.channelId,
-      move.toSidebarSectionId,
-      move.fromSidebarSectionId
-    );
-
-    progressBar.increment();
+    const result = await client.muteChannels(channelsToMute);
 
     if (result.ok) {
-      successfulMoves.push(move);
+      console.log(`Muted ${channelsToMute.length} ${channelsToMute.length === 1 ? 'channel' : 'channels'}.`);
     } else {
-      errors.push({ move, result });
+      console.log(`Failed to mute channels: ${result.error}`);
+      errors.push({ context: 'mute', detail: result });
     }
-  }
-
-  progressBar.finish();
-
-  console.log();
-  console.log(`Organised ${successfulMoves.length} channels`);
-
-  console.log();
-  console.log('We moved:');
-  console.log();
-
-  // Group successful moves by destination
-  const successByDestination = new Map<string, SidebarMove[]>();
-  for (const move of successfulMoves) {
-    const moves = successByDestination.get(move.toSidebarSectionId) || [];
-    moves.push(move);
-    successByDestination.set(move.toSidebarSectionId, moves);
-  }
-
-  for (const [toSidebarSectionId, moves] of successByDestination) {
-    const toSidebarSection = getSidebarSection(toSidebarSectionId);
-    console.log(`➜ ${toSidebarSection?.name} (${toSidebarSectionId})`);
-
-    for (const move of moves) {
-      const channel = channels.get(move.channelId);
-      console.log(`    #${channel?.name} (${move.channelId})`);
-    }
-
-    console.log();
-  }
-
-  console.log();
-  console.log('Summary:');
-  console.log();
-
-  const summaryByDestination = new Map<string, number>();
-  for (const move of sidebarMoves) {
-    summaryByDestination.set(
-      move.toSidebarSectionId,
-      (summaryByDestination.get(move.toSidebarSectionId) || 0) + 1
-    );
-  }
-
-  for (const [sidebarSectionId, count] of summaryByDestination) {
-    const sidebarSection = getSidebarSection(sidebarSectionId);
-    console.log(`    Moved ${count} channels to ${sidebarSection?.name}`);
   }
 
   if (errors.length > 0) {
     console.log();
-    console.log(`Sadly ${errors.length} channels couldn't be moved:`);
+    console.log(`${errors.length} ${errors.length === 1 ? 'error' : 'errors'} occurred:`);
     console.log();
     for (const err of errors) {
       console.log(`    ${JSON.stringify(err)}`);

@@ -337,6 +337,79 @@ describe('SidebarRule.fromJSON', () => {
     const rule = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1' });
     expect((rule as PrefixSidebarRule).prefix).toBeUndefined();
   });
+
+  it('parses mute: true and sets the mute property', () => {
+    const rule = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'alert-', mute: true });
+    expect(rule.mute).toBe(true);
+  });
+
+  it('defaults mute to false when omitted', () => {
+    const rule = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'cust-' });
+    expect(rule.mute).toBe(false);
+  });
+
+  it('passes mute through to all rule types', () => {
+    const prefix = SidebarRule.fromJSON('s1', { type: 'prefix', prefix: 'p-', mute: true });
+    const suffix = SidebarRule.fromJSON('s1', { type: 'suffix', suffix: '-s', mute: true });
+    const keyword = SidebarRule.fromJSON('s1', { type: 'keyword', keyword: 'k', mute: true });
+    const exact = SidebarRule.fromJSON('s1', { type: 'exact', name: 'general', mute: true });
+
+    expect(prefix.mute).toBe(true);
+    expect(suffix.mute).toBe(true);
+    expect(keyword.mute).toBe(true);
+    expect(exact.mute).toBe(true);
+  });
+
+  it('works with sidebarSectionId: null (mute-only rule)', () => {
+    const rule = SidebarRule.fromJSON(null, { type: 'prefix', prefix: 'alert-', mute: true });
+    expect(rule).toBeInstanceOf(PrefixSidebarRule);
+    expect(rule.sidebarSectionId).toBeNull();
+    expect(rule.mute).toBe(true);
+    expect(rule.applies('alert-prod')).toBe(true);
+  });
+});
+
+// ============================================================================
+// Mute property on rule subclasses
+// ============================================================================
+
+describe('Mute property on rule subclasses', () => {
+  it('PrefixSidebarRule stores mute correctly', () => {
+    const rule = new PrefixSidebarRule(null, 'alert-', false, true);
+    expect(rule.mute).toBe(true);
+    expect(rule.sidebarSectionId).toBeNull();
+  });
+
+  it('SuffixSidebarRule stores mute correctly', () => {
+    const rule = new SuffixSidebarRule(null, '-alerts', false, true);
+    expect(rule.mute).toBe(true);
+    expect(rule.sidebarSectionId).toBeNull();
+  });
+
+  it('KeywordSidebarRule stores mute correctly', () => {
+    const rule = new KeywordSidebarRule(null, 'bot', false, true);
+    expect(rule.mute).toBe(true);
+    expect(rule.sidebarSectionId).toBeNull();
+  });
+
+  it('ExactSidebarRule stores mute correctly', () => {
+    const rule = new ExactSidebarRule(null, 'noisy-channel', false, true);
+    expect(rule.mute).toBe(true);
+    expect(rule.sidebarSectionId).toBeNull();
+  });
+
+  it('mute defaults to false in constructors', () => {
+    expect(new PrefixSidebarRule('s1', 'p-').mute).toBe(false);
+    expect(new SuffixSidebarRule('s1', '-s').mute).toBe(false);
+    expect(new KeywordSidebarRule('s1', 'k').mute).toBe(false);
+    expect(new ExactSidebarRule('s1', 'n').mute).toBe(false);
+  });
+
+  it('rule with both sidebarSectionId and mute stores both', () => {
+    const rule = new PrefixSidebarRule('section-1', 'cust-', false, true);
+    expect(rule.sidebarSectionId).toBe('section-1');
+    expect(rule.mute).toBe(true);
+  });
 });
 
 // ============================================================================
