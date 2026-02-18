@@ -256,6 +256,16 @@ describe('ExactSidebarRule', () => {
     const rule = new ExactSidebarRule('my-section-id', 'general');
     expect(rule.sidebarSectionId).toBe('my-section-id');
   });
+
+  it('defaults skipIfOrganized to false', () => {
+    const rule = new ExactSidebarRule('section-1', 'general');
+    expect(rule.skipIfOrganized).toBe(false);
+  });
+
+  it('accepts skipIfOrganized via constructor', () => {
+    const rule = new ExactSidebarRule('section-1', 'general', true);
+    expect(rule.skipIfOrganized).toBe(true);
+  });
 });
 
 // ============================================================================
@@ -281,6 +291,40 @@ describe('SidebarRule.fromJSON', () => {
     expect((rule as ExactSidebarRule).name).toBe('leadership');
     expect(rule.applies('leadership')).toBe(true);
     expect(rule.applies('leadership-team')).toBe(false);
+  });
+
+  it('parses skip_if_organized: true and sets skipIfOrganized', () => {
+    const rule = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'cust-', skip_if_organized: true });
+    expect(rule.skipIfOrganized).toBe(true);
+  });
+
+  it('defaults skipIfOrganized to false when skip_if_organized is omitted', () => {
+    const rule = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'cust-' });
+    expect(rule.skipIfOrganized).toBe(false);
+  });
+
+  it('passes skipIfOrganized through to all rule types', () => {
+    const prefix = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'p-', skip_if_organized: true });
+    const suffix = SidebarRule.fromJSON('s1', { type: 'suffix', sidebar_section: 's1', suffix: '-s', skip_if_organized: true });
+    const keyword = SidebarRule.fromJSON('s1', { type: 'keyword', sidebar_section: 's1', keyword: 'k', skip_if_organized: true });
+    const exact = SidebarRule.fromJSON('s1', { type: 'exact', sidebar_section: 's1', name: 'general', skip_if_organized: true });
+
+    expect(prefix.skipIfOrganized).toBe(true);
+    expect(suffix.skipIfOrganized).toBe(true);
+    expect(keyword.skipIfOrganized).toBe(true);
+    expect(exact.skipIfOrganized).toBe(true);
+  });
+
+  it('sets skipIfOrganized to false for all rule types when not specified', () => {
+    const prefix = SidebarRule.fromJSON('s1', { type: 'prefix', sidebar_section: 's1', prefix: 'p-' });
+    const suffix = SidebarRule.fromJSON('s1', { type: 'suffix', sidebar_section: 's1', suffix: '-s' });
+    const keyword = SidebarRule.fromJSON('s1', { type: 'keyword', sidebar_section: 's1', keyword: 'k' });
+    const exact = SidebarRule.fromJSON('s1', { type: 'exact', sidebar_section: 's1', name: 'general' });
+
+    expect(prefix.skipIfOrganized).toBe(false);
+    expect(suffix.skipIfOrganized).toBe(false);
+    expect(keyword.skipIfOrganized).toBe(false);
+    expect(exact.skipIfOrganized).toBe(false);
   });
 
   it('throws error for unknown rule type', () => {

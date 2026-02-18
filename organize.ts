@@ -28,6 +28,7 @@ interface RuleJSON {
   suffix?: string;
   keyword?: string;
   name?: string;
+  skip_if_organized?: boolean;
 }
 
 interface SidebarMove {
@@ -65,21 +66,25 @@ export class SidebarSection {
 // ============================================================================
 
 export abstract class SidebarRule {
-  constructor(public readonly sidebarSectionId: string) {}
+  constructor(
+    public readonly sidebarSectionId: string,
+    public readonly skipIfOrganized: boolean = false,
+  ) {}
 
   abstract applies(channelName: string): boolean;
   abstract toString(): string;
 
   static fromJSON(sidebarSectionId: string, json: RuleJSON): SidebarRule {
+    const skip = json.skip_if_organized ?? false;
     switch (json.type) {
       case 'prefix':
-        return new PrefixSidebarRule(sidebarSectionId, json.prefix!);
+        return new PrefixSidebarRule(sidebarSectionId, json.prefix!, skip);
       case 'suffix':
-        return new SuffixSidebarRule(sidebarSectionId, json.suffix!);
+        return new SuffixSidebarRule(sidebarSectionId, json.suffix!, skip);
       case 'keyword':
-        return new KeywordSidebarRule(sidebarSectionId, json.keyword!);
+        return new KeywordSidebarRule(sidebarSectionId, json.keyword!, skip);
       case 'exact':
-        return new ExactSidebarRule(sidebarSectionId, json.name!);
+        return new ExactSidebarRule(sidebarSectionId, json.name!, skip);
       default:
         throw new Error(`Unknown rule type: ${(json as RuleJSON).type}`);
     }
@@ -87,8 +92,8 @@ export abstract class SidebarRule {
 }
 
 export class PrefixSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly prefix: string) {
-    super(sidebarSectionId);
+  constructor(sidebarSectionId: string, public readonly prefix: string, skipIfOrganized: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized);
   }
 
   applies(channelName: string): boolean {
@@ -101,8 +106,8 @@ export class PrefixSidebarRule extends SidebarRule {
 }
 
 export class SuffixSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly suffix: string) {
-    super(sidebarSectionId);
+  constructor(sidebarSectionId: string, public readonly suffix: string, skipIfOrganized: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized);
   }
 
   applies(channelName: string): boolean {
@@ -115,8 +120,8 @@ export class SuffixSidebarRule extends SidebarRule {
 }
 
 export class KeywordSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly keyword: string) {
-    super(sidebarSectionId);
+  constructor(sidebarSectionId: string, public readonly keyword: string, skipIfOrganized: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized);
   }
 
   applies(channelName: string): boolean {
@@ -129,8 +134,8 @@ export class KeywordSidebarRule extends SidebarRule {
 }
 
 export class ExactSidebarRule extends SidebarRule {
-  constructor(sidebarSectionId: string, public readonly name: string) {
-    super(sidebarSectionId);
+  constructor(sidebarSectionId: string, public readonly name: string, skipIfOrganized: boolean = false) {
+    super(sidebarSectionId, skipIfOrganized);
   }
 
   applies(channelName: string): boolean {
@@ -646,6 +651,7 @@ async function main(): Promise<void> {
   // Calculate moves
   let totalMatches = 0;
   const sidebarMoves: SidebarMove[] = [];
+  const skippedChannels: Array<{ channelId: string; sectionId: string }> = [];
 
   for (const [channelId, channel] of channels) {
     const rule = sidebarRules.find(r => r.applies(channel.name));
@@ -662,6 +668,12 @@ async function main(): Promise<void> {
     // Find current section (if any)
     const fromSidebarSection = sidebarSections.find(s => s.includesChannel(channelId));
 
+    // Channel is already in a user-created section — respect manual organisation
+    if (rule.skipIfOrganized && fromSidebarSection) {
+      skippedChannels.push({ channelId, sectionId: fromSidebarSection.id });
+      continue;
+    }
+
     sidebarMoves.push({
       channelId,
       fromSidebarSectionId: fromSidebarSection?.id || null,
@@ -674,6 +686,30 @@ async function main(): Promise<void> {
   console.log('==================');
 
   console.log(`${totalMatches} channels match your sidebar rules.`);
+
+  if (skippedChannels.length > 0) {
+    console.log();
+    console.log(
+      `Skipping ${skippedChannels.length} already-organised ${skippedChannels.length === 1 ? 'channel' : 'channels'}:`
+    );
+    console.log();
+
+    const skipsBySection = new Map<string, string[]>();
+    for (const { channelId, sectionId } of skippedChannels) {
+      const list = skipsBySection.get(sectionId) || [];
+      list.push(channelId);
+      skipsBySection.set(sectionId, list);
+    }
+
+    for (const [sectionId, channelIds] of skipsBySection) {
+      const section = getSidebarSection(sectionId);
+      console.log(`  ${section?.name} (${sectionId})`);
+      for (const chId of channelIds) {
+        const channel = channels.get(chId);
+        console.log(`    #${channel?.name}`);
+      }
+    }
+  }
 
   if (sidebarMoves.length === 0) {
     console.log();
